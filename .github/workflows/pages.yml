@@ -1,0 +1,61 @@
+name: Hämta data och publicera
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"  # måndagar 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Vid push räcker sparad data om Kolada inte svarar; schemalagda körningar ska däremot fallera.
+      - name: Hämta från Kolada
+        run: python3 fetch_kolada.py
+        continue-on-error: ${{ github.event_name == 'push' }}
+
+      - name: Bygg sidan
+        run: python3 build.py
+
+      - name: Spara ny data i repot
+        run: |
+          git add data index.html quiz-data.json
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Uppdatera data från Kolada"
+          git push
+
+      - name: Samla filer
+        run: mkdir _site && cp index.html quiz-data.json _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1766,6 +1766,9 @@
    "high": "Vilken kommun har högst kommunal skattesats?",
    "low": "Vilken kommun har lägst kommunal skattesats?",
    "minGapAbs": 0.4,
+   "exclude": [
+    "0980"
+   ],
    "note": "Gotland är inte med, eftersom kommunen också tar ut regionens skatt.",
    "national": 20.69,
    "values": {
