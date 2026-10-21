@@ -137,7 +137,7 @@ const muni = Object.fromEntries(DATA.municipalities.map(m => [m.id, m]));
 
 const $ = id => document.getElementById(id);
 const fmt = (v, d) => v.toLocaleString("sv-SE", { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtVal = (k, v) => k.unit === "%" ? fmt(v, k.decimals) + " %" : fmt(v, k.decimals);
+const fmtVal = (k, v) => fmt(v, k.decimals) + (k.unit === "%" ? " %" : k.suffix ? " " + k.suffix : "");
 
 function store(key, val) {
   try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; }
