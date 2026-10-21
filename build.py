@@ -15,7 +15,7 @@ KPIS = [
      "label": "Skattesats till kommun (%)", "short": "Kommunalskatt",
      "high": "Vilken kommun har högst kommunal skattesats?",
      "low": "Vilken kommun har lägst kommunal skattesats?",
-     "minGapAbs": 0.4,
+     "minGapAbs": 0.4, "exclude": ["0980"],
      "note": "Gotland är inte med, eftersom kommunen också tar ut regionens skatt."},
     {"id": "N15419", "year": 2025, "decimals": 1, "unit": "%",
      "short": "Skola åk 9", "label": "Elever i åk 9 som uppnått betygskriterierna i alla ämnen, kommunala skolor, andel (%)",
@@ -29,6 +29,9 @@ KPIS = [
      "minGapAbs": 3},
 ]
 
+# Kommuner som aldrig ska vara med i ett visst nyckeltal anges i "exclude".
+# fetch_kolada.py skriver valt år per nyckeltal till data/years.txt; det går före "year" ovan.
+
 def read_pairs(path):
     out = {}
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -37,25 +40,33 @@ def read_pairs(path):
             out[k.strip()] = float(v)
     return out
 
-names = {k: v for k, v in (l.split(";", 1) for l in (DATA / "municipalities.txt").read_text(encoding="utf-8").splitlines() if l)}
-pop = read_pairs(DATA / "N01951.txt")
+def main():
+    names = {k: v for k, v in (l.split(";", 1) for l in (DATA / "municipalities.txt").read_text(encoding="utf-8").splitlines() if l)}
+    pop = read_pairs(DATA / "N01951.txt")
+    years_file = DATA / "years.txt"
+    years = {k: int(v) for k, v in read_pairs(years_file).items()} if years_file.exists() else {}
 
-kpis = []
-for k in KPIS:
-    vals = read_pairs(DATA / f"{k['id']}.txt")
-    nat = vals.pop("0000", None)
-    vals = {m: round(v, k["decimals"]) for m, v in vals.items() if m in names}
-    kpis.append({**k, "national": None if nat is None else round(nat, k["decimals"]), "values": vals})
-    print(k["id"], len(vals), "kommuner, riket:", nat)
+    kpis = []
+    for k in KPIS:
+        vals = read_pairs(DATA / f"{k['id']}.txt")
+        nat = vals.pop("0000", None)
+        vals = {m: round(v, k["decimals"]) for m, v in vals.items()
+                if m in names and m not in k.get("exclude", ())}
+        kpis.append({**k, "year": years.get(k["id"], k["year"]), "national": None if nat is None else round(nat, k["decimals"]), "values": vals})
+        print(k["id"], kpis[-1]["year"], len(vals), "kommuner, riket:", nat)
 
-payload = {
-    "municipalities": [{"id": m, "name": n, "pop": int(pop.get(m, 0))} for m, n in names.items()],
-    "kpis": kpis,
-}
-assert len(payload["municipalities"]) == 290
+    payload = {
+        "municipalities": [{"id": m, "name": n, "pop": int(pop.get(m, 0))} for m, n in names.items()],
+        "kpis": kpis,
+    }
+    assert len(payload["municipalities"]) == 290
 
-html = (ROOT / "template.html").read_text(encoding="utf-8")
-html = html.replace("/*__QUIZ_DATA__*/null", json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
-(ROOT / "index.html").write_text(html, encoding="utf-8")
-(ROOT / "quiz-data.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
-print("index.html", len(html), "bytes")
+    html = (ROOT / "template.html").read_text(encoding="utf-8")
+    html = html.replace("/*__QUIZ_DATA__*/null", json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    (ROOT / "index.html").write_text(html, encoding="utf-8")
+    (ROOT / "quiz-data.json").write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("index.html", len(html), "bytes")
+
+
+if __name__ == "__main__":
+    main()

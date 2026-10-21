@@ -5,12 +5,16 @@ Quizsida där spelaren väljer vilken av fyra kommuner som har högst eller läg
 ## Struktur
 - `data/municipalities.txt` – kommunkod;namn för Sveriges 290 kommuner.
 - `data/<KPI-id>.txt` – kommunkod;värde (kön "T"). `0000` är riket.
-- `build.py` – läser data/, definierar nyckeltal och frågetexter i `KPIS`, bäddar in datan i `template.html` och skriver `index.html` och `quiz-data.json`.
+- `data/years.txt` – KPI-id;år som fetch_kolada.py valt. Går före `year` i `KPIS`.
+- `fetch_kolada.py` – hämtar kommunlistan och alla nyckeltal i `KPIS` från API:et (paginering via `next_url`, utan regioner och `G`-grupper) och väljer senaste året där minst 250 kommuner har värde. Skriver inget om något steg misslyckas.
+- `.github/workflows/pages.yml` – hämtar data, bygger, committar ändrad data och publicerar på GitHub Pages vid push till main, varje måndag och manuellt.
+- `build.py` – läser data/, definierar nyckeltal och frågetexter i `KPIS` (`exclude` för kommuner som ska uteslutas), bäddar in datan i `template.html` och skriver `index.html` och `quiz-data.json`.
 - `template.html` – hela sidan (HTML, CSS, JS) med platshållaren `/*__QUIZ_DATA__*/null`.
 - `index.html` – genererad fil, redigeras inte för hand.
 
 ## Bygga
 ```
+python3 fetch_kolada.py   # valfritt, hämtar färsk data
 python3 build.py
 ```
 Öppna sedan `index.html` i en webbläsare.
@@ -25,6 +29,4 @@ python3 build.py
 - Sidan ska fungera på mobil och surfplatta och i både ljust och mörkt tema.
 
 ## Nästa steg
-1. Skript som hämtar data från API:et i stället för manuellt sparade filer (paginering via `next_url`, filtrera bort `G`-grupper och regioner `0001`–`0025`).
-2. GitHub Action som hämtar data och bygger om sidan varje vecka, plus GitHub Pages.
-3. Fler nyckeltal, läget "Min kommun mot riket" och frågetypen "Gissa siffran".
+1. Fler nyckeltal, läget "Min kommun mot riket" och frågetypen "Gissa siffran".
