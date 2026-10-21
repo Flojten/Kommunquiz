@@ -66,6 +66,15 @@ def fetch_kpi_year(kpi, year):
     return out
 
 
+def check_title(k):
+    """Varnar om label inte längre stämmer med Koladas titel, t.ex. vid fel id."""
+    page = get_json(f"{API}/kpi/{k['id']}")
+    rows = page.get("values", [page]) if isinstance(page, dict) else page
+    title = rows[0].get("title") if rows else None
+    if title != k["label"]:
+        print(f"  VARNING {k['id']}: Kolada kallar nyckeltalet \"{title}\", label är \"{k['label']}\"")
+
+
 def fetch_kpi(kpi):
     this_year = datetime.date.today().year
     for year in range(this_year + 1, this_year - YEARS_BACK, -1):
@@ -87,6 +96,7 @@ def main():
     files = {"municipalities.txt": "".join(f"{m};{n}\n" for m, n in names.items())}
     years = {}
     for k in KPIS:
+        check_title(k)
         year, vals = fetch_kpi(k["id"])
         vals = {m: v for m, v in vals.items() if m == "0000" or m in names}
         years[k["id"]] = year
