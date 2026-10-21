@@ -1767,6 +1767,7 @@
    "high": "Vilken kommun har högst kommunal skattesats?",
    "low": "Vilken kommun har lägst kommunal skattesats?",
    "guess": "Vilken kommunal skattesats har {kommun}?",
+   "vs": "den kommunala skattesatsen",
    "minGapAbs": 0.4,
    "exclude": [
     "0980"
@@ -2075,6 +2076,7 @@
    "high": "I vilken kommun klarade störst andel av niondeklassarna betygskriterierna i alla ämnen?",
    "low": "I vilken kommun klarade minst andel av niondeklassarna betygskriterierna i alla ämnen?",
    "guess": "Hur stor andel av niondeklassarna i de kommunala skolorna i {kommun} klarade betygskriterierna i alla ämnen?",
+   "vs": "andelen niondeklassare i kommunala skolor som klarade betygskriterierna i alla ämnen",
    "minGapAbs": 4,
    "national": 69.9,
    "values": {
@@ -2380,6 +2382,7 @@
    "high": "I vilken kommun är störst andel av invånarna aktiva bibliotekslåntagare?",
    "low": "I vilken kommun är minst andel av invånarna aktiva bibliotekslåntagare?",
    "guess": "Hur stor andel av invånarna i {kommun} är aktiva bibliotekslåntagare?",
+   "vs": "andelen invånare som är aktiva bibliotekslåntagare",
    "minGapAbs": 3,
    "national": 23.2,
    "values": {
@@ -2684,6 +2687,7 @@
    "high": "I vilken kommun röstade störst andel i kommunvalet?",
    "low": "I vilken kommun röstade minst andel i kommunvalet?",
    "guess": "Hur stor andel av de röstberättigade i {kommun} röstade i kommunvalet?",
+   "vs": "valdeltagandet i kommunvalet",
    "minGapAbs": 3,
    "note": "Gäller kommunvalet 2022.",
    "national": 80.0,
@@ -2987,6 +2991,7 @@
    "high": "I vilken kommun är störst andel av invånarna födda utomlands?",
    "low": "I vilken kommun är minst andel av invånarna födda utomlands?",
    "guess": "Hur stor andel av invånarna i {kommun} är födda utomlands?",
+   "vs": "andelen invånare som är födda utomlands",
    "minGapAbs": 3,
    "national": 20.8,
    "values": {
@@ -3292,6 +3297,7 @@
    "high": "I vilken kommun har störst andel av de vuxna (25–64 år) läst vidare efter gymnasiet?",
    "low": "I vilken kommun har minst andel av de vuxna (25–64 år) läst vidare efter gymnasiet?",
    "guess": "Hur stor andel av de vuxna (25–64 år) i {kommun} har läst vidare efter gymnasiet?",
+   "vs": "andelen vuxna (25–64 år) som har läst vidare efter gymnasiet",
    "minGapAbs": 4,
    "national": 48.5,
    "values": {
@@ -3598,6 +3604,7 @@
    "high": "Vilken kommun har högst medelålder?",
    "low": "Vilken kommun har lägst medelålder?",
    "guess": "Vilken medelålder har invånarna i {kommun}?",
+   "vs": "medelåldern",
    "minGapAbs": 1.5,
    "national": 42.4,
    "values": {
@@ -3904,6 +3911,7 @@
    "high": "I vilken kommun startas flest nya företag i förhållande till antalet invånare?",
    "low": "I vilken kommun startas minst antal nya företag i förhållande till antalet invånare?",
    "guess": "Hur många nya företag startades per 1 000 invånare (16–64 år) i {kommun}?",
+   "vs": "antalet nystartade företag per invånare",
    "minGapRel": 0.15,
    "note": "Antal nystartade företag per 1 000 invånare i åldern 16–64 år.",
    "national": 11.5,
@@ -4210,6 +4218,7 @@
    "high": "I vilken kommun är störst andel av invånarna (18–65 år) arbetslösa?",
    "low": "I vilken kommun är minst andel av invånarna (18–65 år) arbetslösa?",
    "guess": "Hur stor andel av invånarna (18–65 år) i {kommun} är arbetslösa?",
+   "vs": "andelen arbetslösa (18–65 år)",
    "minGapRel": 0.2,
    "national": 5.8,
    "values": {
@@ -4515,6 +4524,7 @@
    "high": "I vilken kommun fick störst andel av invånarna ekonomiskt bistånd från kommunen under året?",
    "low": "I vilken kommun fick minst andel av invånarna ekonomiskt bistånd från kommunen under året?",
    "guess": "Hur stor andel av invånarna i {kommun} fick ekonomiskt bistånd från kommunen under året?",
+   "vs": "andelen invånare som fick ekonomiskt bistånd",
    "minGapRel": 0.25,
    "national": 2.3,
    "values": {
@@ -4811,6 +4821,7 @@
    "high": "I vilken kommun har invånarna i genomsnitt längst till skyddad natur?",
    "low": "I vilken kommun har invånarna i genomsnitt närmast till skyddad natur?",
    "guess": "Hur långt har invånarna i {kommun} i genomsnitt till skyddad natur?",
+   "vs": "medelavståndet till skyddad natur",
    "minGapRel": 0.3,
    "national": 2.0,
    "values": {
@@ -5117,6 +5128,7 @@
    "high": "I vilken kommun anmäldes flest brott i förhållande till antalet invånare?",
    "low": "I vilken kommun anmäldes minst antal brott i förhållande till antalet invånare?",
    "guess": "Hur många brott anmäldes per 100 000 invånare i {kommun}?",
+   "vs": "antalet anmälda brott per invånare",
    "minGapRel": 0.2,
    "note": "Anmälda brott per 100 000 invånare. Brotten räknas där de begicks, inte där den misstänkta bor.",
    "national": 13581.0,
@@ -5424,6 +5436,7 @@
    "high": "I vilken kommun får invånarna ersättning från Försäkringskassan för flest sjukdagar per person?",
    "low": "I vilken kommun får invånarna ersättning från Försäkringskassan för minst antal sjukdagar per person?",
    "guess": "Hur många sjukdagar per person fick invånarna i {kommun} ersättning för från Försäkringskassan?",
+   "vs": "antalet ersatta sjukdagar per person (ohälsotalet)",
    "minGapRel": 0.15,
    "note": "Ohälsotalet: dagar med sjukpenning, rehabiliteringspenning och sjuk- eller aktivitetsersättning per försäkrad 16–64 år.",
    "national": 22.0,
@@ -5730,6 +5743,7 @@
    "high": "I vilken kommun går störst andel av barnen 6–12 år på fritids?",
    "low": "I vilken kommun går minst andel av barnen 6–12 år på fritids?",
    "guess": "Hur stor andel av barnen 6–12 år i {kommun} går på fritids?",
+   "vs": "andelen barn 6–12 år som går på fritids",
    "minGapAbs": 6,
    "national": 58.0,
    "values": {
@@ -6035,6 +6049,7 @@
    "high": "I vilken kommun är störst andel av invånarna under 20 år?",
    "low": "I vilken kommun är minst andel av invånarna under 20 år?",
    "guess": "Hur stor andel av invånarna i {kommun} är under 20 år?",
+   "vs": "andelen invånare under 20 år",
    "minGapAbs": 1.5,
    "national": 22.4,
    "values": {
@@ -6341,6 +6356,7 @@
    "high": "Vilken kommun har flest invånare per kvadratkilometer?",
    "low": "Vilken kommun har minst antal invånare per kvadratkilometer?",
    "guess": "Hur många invånare per kvadratkilometer har {kommun}?",
+   "vs": "befolkningstätheten",
    "minGapRel": 0.3,
    "national": 25.9,
    "values": {
@@ -6646,6 +6662,7 @@
    "high": "I vilken kommun är störst andel av bilarna elbilar?",
    "low": "I vilken kommun är minst andel av bilarna elbilar?",
    "guess": "Hur stor andel av bilarna i {kommun} är elbilar?",
+   "vs": "andelen elbilar",
    "minGapRel": 0.2,
    "national": 8.6,
    "values": {
@@ -6952,6 +6969,7 @@
    "high": "I vilken kommun finns flest bilar i förhållande till antalet invånare?",
    "low": "I vilken kommun finns minst antal bilar i förhållande till antalet invånare?",
    "guess": "Hur många bilar finns det per 1 000 invånare i {kommun}?",
+   "vs": "antalet bilar per invånare",
    "minGapRel": 0.1,
    "national": 475.0,
    "values": {
@@ -7257,6 +7275,7 @@
    "high": "I vilken kommun är störst andel av bostäderna hyresrätter?",
    "low": "I vilken kommun är minst andel av bostäderna hyresrätter?",
    "guess": "Hur stor andel av bostäderna i {kommun} är hyresrätter?",
+   "vs": "andelen hyresrätter",
    "minGapAbs": 5,
    "national": 39.1,
    "values": {
@@ -7563,6 +7582,7 @@
    "high": "I vilken kommun släpps mest växthusgaser ut i förhållande till antalet invånare?",
    "low": "I vilken kommun släpps minst växthusgaser ut i förhållande till antalet invånare?",
    "guess": "Hur många ton växthusgaser släpptes ut per invånare i {kommun}?",
+   "vs": "utsläppen av växthusgaser per invånare",
    "minGapRel": 0.3,
    "note": "Utsläpp inom kommunens gränser i ton koldioxidekvivalenter per invånare.",
    "national": 4.5,
@@ -7870,6 +7890,7 @@
    "high": "I vilken kommun föddes flest barn i förhållande till antalet invånare?",
    "low": "I vilken kommun föddes minst antal barn i förhållande till antalet invånare?",
    "guess": "Hur många barn föddes per 1 000 invånare i {kommun}?",
+   "vs": "antalet födda barn per invånare",
    "minGapRel": 0.15,
    "national": 9.2,
    "values": {
@@ -8175,6 +8196,7 @@
    "high": "I vilken kommun har störst andel av de vuxna skulder hos Kronofogden?",
    "low": "I vilken kommun har minst andel av de vuxna skulder hos Kronofogden?",
    "guess": "Hur stor andel av de vuxna i {kommun} har skulder hos Kronofogden?",
+   "vs": "andelen vuxna med skulder hos Kronofogden",
    "minGapRel": 0.2,
    "national": 4.0,
    "values": {
@@ -8481,6 +8503,7 @@
    "high": "Vilken kommun har flest övernattande gäster i förhållande till antalet invånare?",
    "low": "Vilken kommun har minst antal övernattande gäster i förhållande till antalet invånare?",
    "guess": "Hur många gästnätter per invånare hade {kommun}?",
+   "vs": "antalet gästnätter per invånare",
    "minGapRel": 0.3,
    "minCount": 240,
    "note": "Gästnätter på hotell, vandrarhem, campingar och liknande per invånare.",
@@ -8742,6 +8765,7 @@
    "high": "I vilken kommun idrottar barn och unga (7–20 år) oftast i en förening?",
    "low": "I vilken kommun idrottar barn och unga (7–20 år) mest sällan i en förening?",
    "guess": "Hur många gånger idrottade barn och unga (7–20 år) i {kommun} i en förening under året, i snitt?",
+   "vs": "antalet idrottstillfällen i förening per barn och ungdom (7–20 år)",
    "minGapRel": 0.2,
    "note": "Antal deltagartillfällen i idrottsföreningar under året per invånare 7–20 år.",
    "national": 33.4,

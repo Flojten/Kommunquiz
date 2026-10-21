@@ -47,7 +47,19 @@ header { display: flex; align-items: baseline; justify-content: space-between; g
 .brand::before { content: ""; width: 14px; height: 14px; background: var(--accent); border-radius: 2px; transform: rotate(45deg); }
 .meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); display: flex; gap: 14px; font-variant-numeric: tabular-nums; }
 .meta b { color: var(--ink); font-weight: 500; }
-.progress { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.progress { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.modes button { font: inherit; font-size: 0.85rem; font-weight: 500; cursor: pointer; color: var(--muted); background: transparent; border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.modes button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); background: var(--card); }
+.modes button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.pick { display: flex; flex-direction: column; gap: 10px; }
+.pick label { font-size: 0.85rem; color: var(--muted); }
+.pick select { font: inherit; font-size: 1.05rem; color: var(--ink); background: var(--paper); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; }
+.pick select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.lead { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.options.versus { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.versus .opt { justify-items: start; }
+.recap .arrow { font-family: var(--font-mono); }
 .progress span { height: 5px; border-radius: 3px; background: var(--line); }
 .progress span.ok { background: var(--ok); }
 .progress span.bad { background: var(--bad); }
@@ -130,11 +142,15 @@ footer a { color: inherit; }
   <header>
     <div class="brand">Kommunkampen</div>
     <div class="meta" aria-live="polite">
-      <span>Fråga <b id="qnum">1</b>/10</span>
+      <span>Fråga <b id="qnum">1</b>/<span id="qtotal">10</span></span>
       <span>Poäng <b id="score">0</b></span>
       <span>Rekord <b id="best">–</b></span>
     </div>
   </header>
+  <nav class="modes" aria-label="Spelläge">
+    <button data-mode="mix">Blandat</button>
+    <button data-mode="home">Min kommun mot riket</button>
+  </nav>
   <div class="progress" id="progress" aria-hidden="true"></div>
   <main id="stage"></main>
   <footer>
@@ -171,6 +187,12 @@ function pickWeighted(ids, n) {
   return out;
 }
 
+// Tydlig skillnad mellan två värden enligt nyckeltalets minGapRel/minGapAbs. factor < 1 mildrar kravet.
+function clearGap(kpi, a, b, factor = 1) {
+  const gap = Math.abs(a - b);
+  return kpi.minGapRel ? gap / Math.max(a, b) >= kpi.minGapRel * factor : gap >= kpi.minGapAbs * factor;
+}
+
 // used: kommuner som redan visats i omgången. De undviks så länge det finns tillräckligt många andra.
 function makeQuestion(kpi, used) {
   const dir = Math.random() < 0.5 ? "high" : "low";
@@ -181,10 +203,7 @@ function makeQuestion(kpi, used) {
     const four = pickWeighted(ids, 4);
     const sorted = [...four].sort((a, b) => kpi.values[b] - kpi.values[a]);
     const [first, second] = dir === "high" ? [sorted[0], sorted[1]] : [sorted[3], sorted[2]];
-    const a = kpi.values[first], b = kpi.values[second];
-    const gap = Math.abs(a - b);
-    const ok = kpi.minGapRel ? gap / Math.max(a, b) >= kpi.minGapRel : gap >= kpi.minGapAbs;
-    if (ok) { four.forEach(id => used.add(id)); return { kpi, dir, options: four, answer: first }; }
+    if (clearGap(kpi, kpi.values[first], kpi.values[second])) { four.forEach(id => used.add(id)); return { kpi, dir, options: four, answer: first }; }
   }
   return null;
 }
@@ -232,21 +251,72 @@ function buildRound() {
   return order.map(k => k.guess && Math.random() < GUESS_SHARE ? makeGuess(k, used) : makeQuestion(k, used)).filter(Boolean);
 }
 
-const questionText = q => q.type === "guess" ? q.kpi.guess.replace("{kommun}", muni[q.muni].name) : q.kpi[q.dir];
+// Min kommun mot riket: nyckeltal där kommunen skiljer sig tydligt från riket. Räcker de inte till
+// en hel omgång fylls den på med nyckeltal som klarar halva kravet; mycket genomsnittliga kommuner
+// kan ändå få färre frågor.
+function buildHomeRound(id) {
+  const cands = DATA.kpis.filter(k => k.vs && k.national != null && k.values[id] != null)
+    .sort(() => Math.random() - 0.5);
+  const strict = cands.filter(k => clearGap(k, k.values[id], k.national));
+  const loose = cands.filter(k => !strict.includes(k) && clearGap(k, k.values[id], k.national, 0.5));
+  return [...strict, ...loose].slice(0, ROUND).sort(() => Math.random() - 0.5)
+    .map(kpi => ({ type: "home", kpi, muni: id, answer: kpi.values[id] > kpi.national ? "high" : "low" }));
+}
+
+const questionText = q => q.type === "home" ? `Är ${q.kpi.vs} i ${muni[q.muni].name} högre eller lägre än i riket?` : q.type === "guess" ? q.kpi.guess.replace("{kommun}", muni[q.muni].name) : q.kpi[q.dir];
 
 let state;
+let mode = store("kk-mode") === "home" ? "home" : "mix";
+const homeId = () => { const id = store("kk-home"); return id && muni[id] ? id : null; };
+
 function newGame() {
-  state = { qs: buildRound(), i: 0, score: 0, results: [] };
+  document.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  if (mode === "home" && !homeId()) return renderPicker();
+  state = { mode, qs: mode === "home" ? buildHomeRound(homeId()) : buildRound(), i: 0, score: 0, results: [] };
   renderQuestion();
 }
 
+function setMode(m) {
+  mode = m;
+  store("kk-mode", m);
+  m === "home" ? renderPicker() : newGame();
+}
+
+function renderPicker() {
+  document.querySelectorAll(".modes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.mode === "home")));
+  state = { mode: "home", qs: [], i: 0, score: 0, results: [] };
+  renderProgress();
+  const current = homeId();
+  const opts = [...DATA.municipalities].sort((a, b) => a.name.localeCompare(b.name, "sv"))
+    .map(m => `<option value="${m.id}"${m.id === current ? " selected" : ""}>${m.name}</option>`).join("");
+  $("stage").innerHTML = `
+    <section class="card">
+      <div class="eyebrow">Min kommun mot riket</div>
+      <h1>Hur skiljer sig din kommun från Sverige som helhet?</h1>
+      <p class="lead">Du får frågor om nyckeltal där din kommun ligger tydligt över eller under riket. Svara högre eller lägre.</p>
+      <div class="pick">
+        <label for="home">Välj kommun</label>
+        <select id="home">${current ? "" : `<option value="" selected disabled>Välj …</option>`}${opts}</select>
+        <button class="btn" id="start">Starta</button>
+      </div>
+    </section>`;
+  $("start").addEventListener("click", () => {
+    if (!$("home").value) return $("home").focus();
+    store("kk-home", $("home").value);
+    mode = "home";
+    newGame();
+  });
+  $("home").focus({ preventScroll: true });
+}
+
 function renderProgress() {
-  $("progress").innerHTML = Array.from({ length: ROUND }, (_, i) => {
+  $("progress").innerHTML = Array.from({ length: state.qs.length || ROUND }, (_, i) => {
     const r = state.results[i];
     const cls = r === true ? "ok" : r === false ? "bad" : i === state.i ? "now" : "";
     return `<span class="${cls}"></span>`;
   }).join("");
-  $("qnum").textContent = Math.min(state.i + 1, ROUND);
+  $("qnum").textContent = Math.min(state.i + 1, state.qs.length || ROUND);
+  $("qtotal").textContent = state.qs.length || ROUND;
   $("score").textContent = state.score;
   const best = store("kk-best");
   $("best").textContent = best ?? "–";
@@ -256,6 +326,7 @@ function renderQuestion() {
   const q = state.qs[state.i];
   renderProgress();
   if (q.type === "guess") return renderGuess(q);
+  if (q.type === "home") return renderHome(q);
   const stage = $("stage");
   stage.innerHTML = `
     <section class="card">
@@ -306,17 +377,61 @@ function answer(picked) {
   showFeedback(k, right, right ? "Rätt!" : `Fel. Rätt svar är ${muni[q.answer].name}.`);
 }
 
-function showFeedback(k, right, verdict) {
+function showFeedback(k, right, verdict, showNational = true) {
   const last = state.i === state.qs.length - 1;
   $("after").innerHTML = `
     <div class="feedback">
       <span class="verdict ${right ? "ok" : "bad"}">${verdict}</span>
-      ${k.national != null ? `<span class="legend"><i></i>Riket: ${fmtVal(k, k.national)}</span>` : ""}
+      ${showNational && k.national != null ? `<span class="legend"><i></i>Riket: ${fmtVal(k, k.national)}</span>` : ""}
       <span class="small">${k.label}, ${k.year}.${k.note ? " " + k.note : ""} Källa: Kolada.</span>
     </div>
     <button class="btn" id="next" style="margin-top:14px">${last ? "Se resultat" : "Nästa fråga"}</button>`;
   $("next").addEventListener("click", () => { state.i++; last ? renderEnd() : renderQuestion(); });
   $("next").focus({ preventScroll: true });
+}
+
+function renderHome(q) {
+  const k = q.kpi;
+  $("stage").innerHTML = `
+    <section class="card">
+      <div class="eyebrow">Fråga ${state.i + 1} · ${muni[q.muni].name} mot riket · ${k.short} · ${k.year}</div>
+      <h1>${questionText(q)}</h1>
+      <div class="options versus" id="opts">
+        <button class="opt" data-id="high"><span class="name">Högre</span><span class="lan">än riket</span></button>
+        <button class="opt" data-id="low"><span class="name">Lägre</span><span class="lan">än riket</span></button>
+      </div>
+      <div id="compare"></div>
+      <div id="after"></div>
+    </section>`;
+  $("stage").querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => answerHome(q, b.dataset.id)));
+  $("stage").querySelector(".opt").focus({ preventScroll: true });
+}
+
+function answerHome(q, picked) {
+  const k = q.kpi, v = k.values[q.muni];
+  const right = picked === q.answer;
+  if (right) state.score++;
+  state.results[state.i] = right;
+  q.picked = picked;
+  renderProgress();
+  document.querySelectorAll(".opt").forEach(b => {
+    b.disabled = true;
+    if (b.dataset.id === q.answer) b.classList.add("correct");
+    else if (b.dataset.id === picked) b.classList.add("wrong");
+  });
+  const scaleMax = Math.max(v, k.national) * 1.05;
+  const row = (name, val, cls) => `
+    <div class="opt ${cls}" style="cursor:default">
+      <span class="name">${name}</span>
+      <span class="val">${fmtVal(k, val)}</span>
+      <span class="barbox"><span class="barfill" data-w="${(val / scaleMax * 100).toFixed(2)}"></span></span>
+    </div>`;
+  $("compare").innerHTML = `<div class="options" style="margin-top:4px">
+    ${row(muni[q.muni].name, v, "correct")}${row("Riket", k.national, "")}</div>`;
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    $("compare").querySelectorAll(".barfill").forEach(f => f.style.width = f.dataset.w + "%")));
+  const word = q.answer === "high" ? "högre" : "lägre";
+  showFeedback(k, right, `${right ? "Rätt!" : "Fel."} ${muni[q.muni].name} ligger ${word} än riket.`, false);
 }
 
 function renderGuess(q) {
@@ -373,31 +488,48 @@ function answerGuess(q, guess) {
 }
 
 function renderEnd() {
+  const home = state.mode === "home";
+  // Rekordet gäller bara blandat läge, där alla omgångar har lika många frågor.
   const prev = Number(store("kk-best") || 0);
-  const isRecord = state.score > prev;
+  const isRecord = !home && state.score > prev;
   if (isRecord) store("kk-best", String(state.score));
   renderProgress();
-  $("qnum").textContent = ROUND;
-  const verdict = state.score >= 9 ? "Du kan din kommunstatistik." : state.score >= 6 ? "Bra jobbat." : state.score >= 3 ? "Kommunsverige är fullt av överraskningar." : "Nu vet du mer än innan.";
+  $("qnum").textContent = state.qs.length;
+  const share = state.score / state.qs.length;
+  const verdict = home
+    ? (share >= 0.9 ? `Du känner ${muni[homeId()].name} utan och innan.` : share >= 0.6 ? `Du har bra koll på ${muni[homeId()].name}.` : `${muni[homeId()].name} har några överraskningar.`)
+    : state.score >= 9 ? "Du kan din kommunstatistik." : state.score >= 6 ? "Bra jobbat." : state.score >= 3 ? "Kommunsverige är fullt av överraskningar." : "Nu vet du mer än innan.";
+  const fewer = home && state.qs.length < ROUND
+    ? `<p class="lead">${muni[homeId()].name} är så lik riket att vi bara hittade ${state.qs.length} nyckeltal med en tydlig skillnad.</p>` : "";
+  const line = q => q.type === "home"
+    ? `<span>${q.kpi.short} ${q.kpi.year} <span class="m">${fmtVal(q.kpi, q.kpi.values[q.muni])} <span class="arrow">${q.answer === "high" ? "↑" : "↓"}</span> riket ${fmtVal(q.kpi, q.kpi.national)}</span></span>`
+    : `<span>${questionText(q)} <span class="m">${q.type === "guess"
+        ? `${fmtVal(q.kpi, q.kpi.values[q.answer])} (du: ${fmtGuess(q.kpi, q.guessed)})`
+        : `${muni[q.answer].name} (${fmtVal(q.kpi, q.kpi.values[q.answer])})`}</span></span>`;
   $("stage").innerHTML = `
     <section class="card result">
-      <div class="eyebrow">Resultat${isRecord && prev > 0 ? " · Nytt rekord" : ""}</div>
+      <div class="eyebrow">Resultat${home ? ` · ${muni[homeId()].name} mot riket` : ""}${isRecord && prev > 0 ? " · Nytt rekord" : ""}</div>
       <div class="big">${state.score}<small> av ${state.qs.length}</small></div>
       <h1>${verdict}</h1>
+      ${fewer}
       <ul class="recap">
         ${state.qs.map((q, i) => `<li>
           <span class="${state.results[i] ? "ok" : "bad"}">${state.results[i] ? "✓" : "✕"}</span>
-          <span>${questionText(q)} <span class="m">${q.type === "guess"
-            ? `${fmtVal(q.kpi, q.kpi.values[q.answer])} (du: ${fmtGuess(q.kpi, q.guessed)})`
-            : `${muni[q.answer].name} (${fmtVal(q.kpi, q.kpi.values[q.answer])})`}</span></span>
+          ${line(q)}
         </li>`).join("")}
       </ul>
-      <div class="row"><button class="btn" id="again">Spela igen</button></div>
+      ${home ? `<p class="small" style="margin:0;color:var(--muted);font-size:.82rem">Källa: Kolada.</p>` : ""}
+      <div class="row">
+        <button class="btn" id="again">Spela igen</button>
+        ${home ? `<button class="btn ghost" id="change">Byt kommun</button>` : ""}
+      </div>
     </section>`;
   $("again").addEventListener("click", newGame);
+  if (home) $("change").addEventListener("click", renderPicker);
   $("again").focus({ preventScroll: true });
 }
 
+document.querySelectorAll(".modes button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 $("years").textContent = "Data: " + DATA.kpis.map(k => `${k.short} ${k.year}`).join(" · ");
 newGame();
 </script>
