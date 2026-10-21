@@ -1,6 +1,6 @@
 """Hämtar kommunlistan och nyckeltalen i build.KPIS från Koladas API v3 och skriver data/.
 
-För varje nyckeltal väljs det senaste året där minst MIN_MUNICIPALITIES kommuner har värde.
+För varje nyckeltal väljs det senaste året där minst MIN_MUNICIPALITIES kommuner (eller minCount i KPIS) har värde.
 Valt år sparas i data/years.txt och används av build.py. Inget skrivs om något steg misslyckas.
 
     python3 fetch_kolada.py
@@ -75,16 +75,16 @@ def check_title(k):
         print(f"  VARNING {k['id']}: Kolada kallar nyckeltalet \"{title}\", label är \"{k['label']}\"")
 
 
-def fetch_kpi(kpi):
+def fetch_kpi(kpi, min_count=MIN_MUNICIPALITIES):
     this_year = datetime.date.today().year
     for year in range(this_year + 1, this_year - YEARS_BACK, -1):
         vals = fetch_kpi_year(kpi, year)
         n = sum(1 for m in vals if m != "0000")
-        if n >= MIN_MUNICIPALITIES:
+        if n >= min_count:
             return year, vals
         if n:
             print(f"  {kpi} {year}: bara {n} kommuner, provar året innan")
-    sys.exit(f"Hittade inget år med minst {MIN_MUNICIPALITIES} kommuner för {kpi}")
+    sys.exit(f"Hittade inget år med minst {min_count} kommuner för {kpi}")
 
 
 def fmt(v):
@@ -97,7 +97,7 @@ def main():
     years = {}
     for k in KPIS:
         check_title(k)
-        year, vals = fetch_kpi(k["id"])
+        year, vals = fetch_kpi(k["id"], k.get("minCount", MIN_MUNICIPALITIES))
         vals = {m: v for m, v in vals.items() if m == "0000" or m in names}
         years[k["id"]] = year
         files[f"{k['id']}.txt"] = "".join(f"{m};{fmt(v)}\n" for m, v in sorted(vals.items()))

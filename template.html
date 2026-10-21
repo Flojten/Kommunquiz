@@ -156,17 +156,20 @@ function pickWeighted(ids, n) {
   return out;
 }
 
-function makeQuestion(kpi) {
+// used: kommuner som redan visats i omgången. De undviks så länge det finns tillräckligt många andra.
+function makeQuestion(kpi, used) {
   const dir = Math.random() < 0.5 ? "high" : "low";
-  const ids = Object.keys(kpi.values);
-  for (let tries = 0; tries < 300; tries++) {
+  const all = Object.keys(kpi.values);
+  const fresh = all.filter(id => !used.has(id));
+  for (let tries = 0; tries < 600; tries++) {
+    const ids = tries < 300 && fresh.length >= 20 ? fresh : all;
     const four = pickWeighted(ids, 4);
     const sorted = [...four].sort((a, b) => kpi.values[b] - kpi.values[a]);
     const [first, second] = dir === "high" ? [sorted[0], sorted[1]] : [sorted[3], sorted[2]];
     const a = kpi.values[first], b = kpi.values[second];
     const gap = Math.abs(a - b);
     const ok = kpi.minGapRel ? gap / Math.max(a, b) >= kpi.minGapRel : gap >= kpi.minGapAbs;
-    if (ok) return { kpi, dir, options: four, answer: first };
+    if (ok) { four.forEach(id => used.add(id)); return { kpi, dir, options: four, answer: first }; }
   }
   return null;
 }
@@ -177,7 +180,8 @@ function buildRound() {
     const shuffled = [...DATA.kpis].sort(() => Math.random() - 0.5);
     for (const k of shuffled) if (order.length < ROUND && order[order.length - 1] !== k) order.push(k);
   }
-  return order.map(makeQuestion).filter(Boolean);
+  const used = new Set();
+  return order.map(k => makeQuestion(k, used)).filter(Boolean);
 }
 
 let state;
