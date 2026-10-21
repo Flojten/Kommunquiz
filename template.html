@@ -84,6 +84,20 @@ h1 { font-size: clamp(1.3rem, 5vw, 1.6rem); line-height: 1.2; margin: 0; font-we
 .opt.wrong .tag { color: var(--bad); }
 @media (prefers-reduced-motion: reduce) { .opt .barfill { transition: none; } }
 
+/* Gissa siffran: reglaget går i percentilordning, så mitten är medianen bland kommunerna */
+.guess { display: flex; flex-direction: column; gap: 10px; }
+.guess .cap { font-size: 0.82rem; color: var(--muted); margin-bottom: -8px; }
+.guess output { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.guess input[type=range] { width: 100%; accent-color: var(--accent); margin: 4px 0; height: 28px; }
+.guess .ends { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.scale { position: relative; height: 10px; background: var(--line); border-radius: 5px; margin: 26px 0 30px; }
+.scale .band { position: absolute; top: 0; bottom: 0; background: var(--ok-soft); border: 1px solid var(--ok); border-radius: 5px; }
+.scale .mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1.5px; border-radius: 2px; }
+.scale .mark b { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--font-mono); font-size: 0.7rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.scale .mark.ans { background: var(--ok); } .scale .mark.ans b { top: -18px; color: var(--ok); }
+.scale .mark.you { background: var(--bad); } .scale .mark.you.hit { background: var(--ok); } .scale .mark.you b { bottom: -18px; color: var(--ink); }
+.scale .mark.nat { background: var(--ink); opacity: .55; width: 2px; top: -3px; bottom: -3px; }
+
 .feedback { display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
 .feedback .verdict { font-weight: 700; font-size: 1.1rem; }
 .feedback .verdict.ok { color: var(--ok); }
@@ -137,7 +151,8 @@ const muni = Object.fromEntries(DATA.municipalities.map(m => [m.id, m]));
 
 const $ = id => document.getElementById(id);
 const fmt = (v, d) => v.toLocaleString("sv-SE", { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtVal = (k, v) => fmt(v, k.decimals) + (k.unit === "%" ? " %" : k.suffix ? " " + k.suffix : "");
+const fmtVal = (k, v) => fmt(v, k.decimals) + (k.unit === "%" ? " %" : k.suffix ? (k.suffix[0] === "/" ? "" : " ") + k.suffix : "");
+const sentence = t => t.endsWith(".") ? t : t + ".";
 
 function store(key, val) {
   try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; }
@@ -174,6 +189,39 @@ function makeQuestion(kpi, used) {
   return null;
 }
 
+// Gissa siffran. Reglaget går från 0 till 100 i percentilordning bland kommunerna, så att
+// skeva nyckeltal (befolkning, täthet) går att gissa. Rätt om gissningen hamnar inom
+// GUESS_TOL percentiler från det verkliga värdet.
+const GUESS_SHARE = 0.3, GUESS_TOL = 10;
+const sortedVals = k => k._sorted ??= Object.values(k.values).sort((a, b) => a - b);
+function valueAt(k, p) {
+  const xs = sortedVals(k), x = p / 100 * (xs.length - 1), i = Math.floor(x);
+  return i >= xs.length - 1 ? xs[xs.length - 1] : xs[i] + (xs[i + 1] - xs[i]) * (x - i);
+}
+function rankOf(k, v) {
+  const xs = sortedVals(k);
+  if (v <= xs[0]) return 0;
+  if (v >= xs[xs.length - 1]) return 100;
+  let i = 0;
+  while (xs[i + 1] < v) i++;
+  const frac = xs[i + 1] === xs[i] ? 0 : (v - xs[i]) / (xs[i + 1] - xs[i]);
+  return (i + frac) / (xs.length - 1) * 100;
+}
+// Gissningen avrundas som den visas, och stora tal till tre värdesiffror.
+function roundGuess(k, v) {
+  if (Math.abs(v) >= 1000) { const f = 10 ** (Math.floor(Math.log10(Math.abs(v))) - 2); return Math.round(v / f) * f; }
+  return Number(v.toFixed(k.decimals));
+}
+const fmtGuess = (k, v) => fmtVal(Math.abs(v) >= 1000 ? { ...k, decimals: 0 } : k, v);
+
+function makeGuess(kpi, used) {
+  const all = Object.keys(kpi.values);
+  const fresh = all.filter(id => !used.has(id));
+  const [id] = pickWeighted(fresh.length ? fresh : all, 1);
+  used.add(id);
+  return { type: "guess", kpi, muni: id, answer: id };
+}
+
 function buildRound() {
   const order = [];
   while (order.length < ROUND) {
@@ -181,8 +229,10 @@ function buildRound() {
     for (const k of shuffled) if (order.length < ROUND && order[order.length - 1] !== k) order.push(k);
   }
   const used = new Set();
-  return order.map(k => makeQuestion(k, used)).filter(Boolean);
+  return order.map(k => k.guess && Math.random() < GUESS_SHARE ? makeGuess(k, used) : makeQuestion(k, used)).filter(Boolean);
 }
+
+const questionText = q => q.type === "guess" ? q.kpi.guess.replace("{kommun}", muni[q.muni].name) : q.kpi[q.dir];
 
 let state;
 function newGame() {
@@ -205,6 +255,7 @@ function renderProgress() {
 function renderQuestion() {
   const q = state.qs[state.i];
   renderProgress();
+  if (q.type === "guess") return renderGuess(q);
   const stage = $("stage");
   stage.innerHTML = `
     <section class="card">
@@ -252,16 +303,73 @@ function answer(picked) {
     }));
   });
 
+  showFeedback(k, right, right ? "Rätt!" : `Fel. Rätt svar är ${muni[q.answer].name}.`);
+}
+
+function showFeedback(k, right, verdict) {
   const last = state.i === state.qs.length - 1;
   $("after").innerHTML = `
     <div class="feedback">
-      <span class="verdict ${right ? "ok" : "bad"}">${right ? "Rätt!" : `Fel. Rätt svar är ${muni[q.answer].name}.`}</span>
+      <span class="verdict ${right ? "ok" : "bad"}">${verdict}</span>
       ${k.national != null ? `<span class="legend"><i></i>Riket: ${fmtVal(k, k.national)}</span>` : ""}
       <span class="small">${k.label}, ${k.year}.${k.note ? " " + k.note : ""} Källa: Kolada.</span>
     </div>
     <button class="btn" id="next" style="margin-top:14px">${last ? "Se resultat" : "Nästa fråga"}</button>`;
   $("next").addEventListener("click", () => { state.i++; last ? renderEnd() : renderQuestion(); });
   $("next").focus({ preventScroll: true });
+}
+
+function renderGuess(q) {
+  const k = q.kpi, xs = sortedVals(k);
+  $("stage").innerHTML = `
+    <section class="card">
+      <div class="eyebrow">Fråga ${state.i + 1} · Gissa siffran · ${k.short} · ${k.year}</div>
+      <h1>${questionText(q)}</h1>
+      <div class="guess" id="guess">
+        <span class="cap">Din gissning</span>
+        <output id="gval" for="slider"></output>
+        <input type="range" id="slider" min="0" max="100" step="0.5" value="50" aria-label="Din gissning">
+        <div class="ends"><span>${fmtVal(k, xs[0])}</span><span>${fmtVal(k, xs[xs.length - 1])}</span></div>
+        <span class="small" style="color:var(--muted);font-size:.82rem">Reglaget går från kommunen med lägst värde till den med högst. Mitten är medianen.</span>
+        <button class="btn" id="submit">Svara</button>
+      </div>
+      <div id="after"></div>
+    </section>`;
+  const slider = $("slider");
+  const update = () => {
+    const txt = fmtGuess(k, roundGuess(k, valueAt(k, Number(slider.value))));
+    $("gval").textContent = txt;
+    slider.setAttribute("aria-valuetext", txt);
+  };
+  slider.addEventListener("input", update);
+  update();
+  $("submit").addEventListener("click", () => answerGuess(q, roundGuess(k, valueAt(k, Number(slider.value)))));
+  slider.focus({ preventScroll: true });
+}
+
+function answerGuess(q, guess) {
+  const k = q.kpi, actual = k.values[q.muni];
+  const pGuess = rankOf(k, guess), pAns = rankOf(k, actual);
+  const right = Math.abs(pGuess - pAns) <= GUESS_TOL;
+  if (right) state.score++;
+  state.results[state.i] = right;
+  q.guessed = guess;
+  renderProgress();
+
+  const lo = Math.max(0, pAns - GUESS_TOL), hi = Math.min(100, pAns + GUESS_TOL);
+  const nat = k.national != null ? `<span class="mark nat" style="left:${rankOf(k, k.national).toFixed(2)}%" title="Riket"></span>` : "";
+  $("guess").innerHTML = `
+    <span class="cap">Rätt svar för ${muni[q.muni].name}, ${LAN[q.muni.slice(0, 2)] || ""}</span>
+    <output>${fmtVal(k, actual)}</output>
+    <div class="scale" aria-hidden="true">
+      <span class="band" style="left:${lo.toFixed(2)}%;width:${(hi - lo).toFixed(2)}%"></span>
+      ${nat}
+      <span class="mark ans" style="left:${pAns.toFixed(2)}%"><b>Rätt</b></span>
+      <span class="mark you${right ? " hit" : ""}" style="left:${pGuess.toFixed(2)}%"><b>Du</b></span>
+    </div>
+    <div class="ends"><span>${fmtVal(k, sortedVals(k)[0])}</span><span>${fmtVal(k, sortedVals(k).at(-1))}</span></div>`;
+  const where = `${sentence(`${muni[q.muni].name}: ${fmtVal(k, actual)}`)} ${sentence(`Du gissade ${fmtGuess(k, guess)}`)}`;
+  showFeedback(k, right, right ? `Rätt! ${where}` : `Fel. ${where}`);
 }
 
 function renderEnd() {
@@ -279,7 +387,9 @@ function renderEnd() {
       <ul class="recap">
         ${state.qs.map((q, i) => `<li>
           <span class="${state.results[i] ? "ok" : "bad"}">${state.results[i] ? "✓" : "✕"}</span>
-          <span>${q.kpi[q.dir]} <span class="m">${muni[q.answer].name} (${fmtVal(q.kpi, q.kpi.values[q.answer])})</span></span>
+          <span>${questionText(q)} <span class="m">${q.type === "guess"
+            ? `${fmtVal(q.kpi, q.kpi.values[q.answer])} (du: ${fmtGuess(q.kpi, q.guessed)})`
+            : `${muni[q.answer].name} (${fmtVal(q.kpi, q.kpi.values[q.answer])})`}</span></span>
         </li>`).join("")}
       </ul>
       <div class="row"><button class="btn" id="again">Spela igen</button></div>
